@@ -44,13 +44,17 @@ int entrySeekF(FILE *, int);
 size_t lenTabF(FILE *);
 int fileWrite(FILE *,size_t , int ,void *);
 
+/// Funzioni di supporto operanti su Tabella in Ram
+table *makeTable(FILE *);
+
 ///Show funciton
 void firstPrint(firstFree *);
 void entryPrint(entry *);
 void tabPrintFile(FILE *);
 
-///funzioni di supporto operanti in ram
+///funzioni di supporto
 int isLastEntry(entry *);
+int isEmptyEntry(entry *e);
 char *booleanPrint(int);
 
 #endif //FILETAB_DEMO_TABLEFILE_H

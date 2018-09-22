@@ -200,6 +200,10 @@ int delEntryTabF(FILE *tab, int index)
 		return -1;
 	}
 	funlockfile(tab);
+}
+
+int searchEntryF(FILE *tab, char* search)
+{
 
 }
 
@@ -244,6 +248,32 @@ int fileWrite(FILE *f,size_t sizeElem, int nelem,void *dat)
 	return 0;
 }
 
+/// Funzioni di supporto operanti su Tabella in Ram
+table *makeTable(FILE *tab)
+{
+	fflush(tab);    //garantisco che tutto quello che va scritto venga scritto
+	struct stat tabInfo;
+	fstat(fileno(tab), &tabInfo);
+	if(tabInfo.st_size==0)
+	{
+		printf("File Vuoto, o Inesistente\n");
+		return;
+	}
+
+	size_t len =lenTabF(tab);
+
+	table *t=(table *)malloc(sizeof(table));
+	t->data=(entry *)malloc(sizeof(entry)*len);
+
+	flockfile(tab);
+	rewind(tab);
+	fread(&t->head,1, sizeof(firstFree),tab);
+	fread(t->data,1, sizeof(entry)*len,tab);
+	funlockfile(tab);
+	return t;
+}
+
+
 ///Show funciton
 void firstPrint(firstFree *f){
 	printf("#1\tfirstFree data Store:\nname\t\t-> %s\ncouterFree\t-> %d\nLen\t\t-> %d\nnextFree\t-> %d\n",f->name,f->counter,f->len,f->nf_id);
@@ -251,7 +281,7 @@ void firstPrint(firstFree *f){
 }
 
 void entryPrint(entry *e){
-	printf("Entry data Store:\n??-Is Last-Free -> %s\nname\t\t-> %s\npoint\t\t-> %d\n",booleanPrint(isLastEntry(e)),e->name,e->point);
+	printf("Entry data Store:\n??-Last-Free -> %s\tempty  -> %s\nname\t\t-> %s\npoint\t\t-> %d\n",booleanPrint(isLastEntry(e)),booleanPrint(isEmptyEntry(e)),e->name,e->point);
 	return;
 }
 
@@ -267,35 +297,48 @@ void tabPrintFile(FILE *tab)
 		printf("File Vuoto, o Inesistente\n");
 		return;
 	}
-	char buf[tabInfo.st_size];
+
 	size_t len =lenTabF(tab);
-	size_t index=0;
+
+	table t;
+	t.data=(entry *)malloc(sizeof(entry)*len);
+
 	flockfile(tab);
 	rewind(tab);
-	index=fread(buf,1, sizeof(firstFree),tab);
-	fread(buf+index,1, sizeof(entry)*len,tab);
+	fread(&t.head,1, sizeof(firstFree),tab);
+	fread(t.data,1, sizeof(entry)*len,tab);
 	funlockfile(tab);
 
 	printf("-------------------------------------------------------------\n");
 	printf("\tIl file ha le seguenti caratteristiche:\n\tsize=%d\n\tlen=%d\n",tabInfo.st_size,len);
 	printf("\tsizeof(entry)=%d\tsizeof(firstFree)=%d\n",sizeof(entry),sizeof(firstFree));
 	printf("\n\t[][]La tabella contenuta nel file contiene:[][]\n\n");
-	firstPrint(buf);
+	firstPrint(&t.head);
 	printf("##########\n\n");
 	for(int i=0; i<len;i++)
 	{
 		printf("--->entry[%d]:",i);
-		entryPrint((buf+ sizeof(firstFree)+ sizeof(entry)*i));
+		entryPrint((&t.data[i]));
 		printf("**********\n");
 	}
 	printf("-------------------------------------------------------------\n");
+
+	free(t.data);
 	return;
 }
 
 ///funzioni di supporto operanti in ram
+
+
 int isLastEntry(entry *e)
 {
 	if(e->name[0]==0 && e->point==NULL)	return 1;
+	return 0;
+}
+
+int isEmptyEntry(entry *e)
+{
+	if(e->name[0]==0 && e->point!=NULL)	return 1;
 	return 0;
 }
 

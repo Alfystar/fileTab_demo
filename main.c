@@ -9,11 +9,12 @@
 FILE *tab1;
 char *fileName1;
 
-int main(int argc, int *argv[]) {
+int main(int argc, int *argv[])
+{
 	if (argc>=2)
 	{
 		fileName1=argv[1];
-	} else{
+	} else {
 		fileName1=tab1Name;
 	}
 	tab1=openTabF(fileName1);
@@ -28,8 +29,10 @@ int main(int argc, int *argv[]) {
 			return 0;
 		}
 	}
-	if(argc>=4) {
-		if (strcmp(argv[2], "d") == 0) {
+	if(argc>=4)
+	{
+		if (strcmp(argv[2], "d") == 0)
+		{
 			delEntryTabF(tab1, atoi(argv[3]));
 			printf("Element [%d] free\n",atoi(argv[3]));
 			return 0;
