@@ -109,7 +109,7 @@ int addEntryTabF(FILE *tab, char *name, int data)
 		/// setup di last
 		entry last;
 		memset(last.name,0,nameEntrySize);
-		last.point=NULL;
+		last.point=-1;
 
 		///first-free viene cambiato il luo next-free
 		first.nf_id++;
@@ -202,11 +202,6 @@ int delEntryTabF(FILE *tab, int index)
 	funlockfile(tab);
 }
 
-int searchEntryF(FILE *tab, char* search)
-{
-
-}
-
 int entrySeekF(FILE *tab, int i)
 {
 	struct stat tabInfo;
@@ -249,6 +244,31 @@ int fileWrite(FILE *f,size_t sizeElem, int nelem,void *dat)
 }
 
 /// Funzioni di supporto operanti su Tabella in Ram
+
+int searchFirstEntry(table *t, char* search)
+{
+	for(int i =0;i<t->head.len;i++)
+	{
+		if(strcmp(t->data[i].name,search)==0)
+		{
+			return i;
+		}
+	}
+	return -1;
+}
+
+int searchEntryBy(table *t, char* search, int idStart)
+{
+	for(int i =idStart;i<t->head.len;i++)
+	{
+		if(strcmp(t->data[i].name,search)==0)
+		{
+			return i;
+		}
+	}
+	return -1;
+}
+
 table *makeTable(FILE *tab)
 {
 	fflush(tab);    //garantisco che tutto quello che va scritto venga scritto
@@ -263,14 +283,22 @@ table *makeTable(FILE *tab)
 	size_t len =lenTabF(tab);
 
 	table *t=(table *)malloc(sizeof(table));
-	t->data=(entry *)malloc(sizeof(entry)*len);
+	t->data=(entry *)calloc(len, sizeof(entry));
+
 
 	flockfile(tab);
 	rewind(tab);
 	fread(&t->head,1, sizeof(firstFree),tab);
 	fread(t->data,1, sizeof(entry)*len,tab);
 	funlockfile(tab);
+	t->stream=tab;
 	return t;
+}
+
+void freeTable(table *t)
+{
+	free(t->data);
+	free(t);
 }
 
 
@@ -285,45 +313,39 @@ void entryPrint(entry *e){
 	return;
 }
 
-
-void tabPrintFile(FILE *tab)
+void tabPrint(table *tab)
 {
-	fflush(tab);    //garantisco che tutto quello che va scritto venga scritto
-
 	struct stat tabInfo;
-	fstat(fileno(tab), &tabInfo);
+	fstat(fileno(tab->stream), &tabInfo);
 	if(tabInfo.st_size==0)
 	{
 		printf("File Vuoto, o Inesistente\n");
 		return;
 	}
 
-	size_t len =lenTabF(tab);
-
-	table t;
-	t.data=(entry *)malloc(sizeof(entry)*len);
-
-	flockfile(tab);
-	rewind(tab);
-	fread(&t.head,1, sizeof(firstFree),tab);
-	fread(t.data,1, sizeof(entry)*len,tab);
-	funlockfile(tab);
+	size_t lenFile =lenTabF(tab->stream);
 
 	printf("-------------------------------------------------------------\n");
-	printf("\tIl file ha le seguenti caratteristiche:\n\tsize=%d\n\tlen=%d\n",tabInfo.st_size,len);
+	printf("\tIl file ha le seguenti caratteristiche:\n\tsize=%d\n\tlenFile=%d\tlenFirst=%d\n",tabInfo.st_size,lenFile,tab->head.len);
 	printf("\tsizeof(entry)=%d\tsizeof(firstFree)=%d\n",sizeof(entry),sizeof(firstFree));
 	printf("\n\t[][]La tabella contenuta nel file contiene:[][]\n\n");
-	firstPrint(&t.head);
+	firstPrint(&tab->head);
 	printf("##########\n\n");
-	for(int i=0; i<len;i++)
+	for(int i=0; i<tab->head.len;i++)
 	{
 		printf("--->entry[%d]:",i);
-		entryPrint((&t.data[i]));
+		entryPrint((&tab->data[i]));
 		printf("**********\n");
 	}
 	printf("-------------------------------------------------------------\n");
+	return;
+}
 
-	free(t.data);
+void tabPrintFile(FILE *tab)
+{
+	table *t=makeTable(tab);
+	tabPrint(t);
+	freeTable(t);
 	return;
 }
 
@@ -332,13 +354,13 @@ void tabPrintFile(FILE *tab)
 
 int isLastEntry(entry *e)
 {
-	if(e->name[0]==0 && e->point==NULL)	return 1;
+	if(e->name[0]==0 && e->point==-1)	return 1;
 	return 0;
 }
 
 int isEmptyEntry(entry *e)
 {
-	if(e->name[0]==0 && e->point!=NULL)	return 1;
+	if(e->name[0]==0 && e->point!=-1)	return 1;
 	return 0;
 }
 

@@ -32,6 +32,7 @@ typedef struct entry_{
 typedef struct table_{
 	firstFree head;
 	entry *data;    //array da malloccare contenente le entry della tamella
+	FILE *stream;
 }table;         /// il tipo table serve per avere una copia in ram concui lavorare
 
 /** Prototipi **/
@@ -45,7 +46,11 @@ size_t lenTabF(FILE *);
 int fileWrite(FILE *,size_t , int ,void *);
 
 /// Funzioni di supporto operanti su Tabella in Ram
+int searchFirstEntry(table *, char*);
+int searchEntryBy(table *, char*, int);
 table *makeTable(FILE *);
+void freeTable(table *);
+
 
 ///Show funciton
 void firstPrint(firstFree *);
@@ -71,7 +76,7 @@ char *booleanPrint(int);
  * 1)   Il parametro "name" contiene il nome dell'utente/chat
  * 2)   Il parametro "point" contiene l'indice della entry in cui ci si trova l'utente/chat nella tabella della chat/utente
  * 3)   Se "name" è nullo allora "point" indica nell'attuale tabella la prossima entry libera
- * 4)   Se entrambi i parametri sono a NULL allora si tratta di LAST-Entry
+ * 4)   Se "name" è nullo e  "point" a -1 allora si tratta di LAST-Entry
  *
  *       ||||-- Firts-Free parameter documentation --||||
  *

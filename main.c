@@ -7,6 +7,7 @@
 
 
 FILE *tab1;
+table *t;
 char *fileName1;
 
 int main(int argc, int *argv[])
@@ -18,6 +19,7 @@ int main(int argc, int *argv[])
 		fileName1=tab1Name;
 	}
 	tab1=openTabF(fileName1);
+	t=makeTable(tab1);
 	if(setUpTabF(tab1,"tabella numero 1")) perror("la tabella 1 ha dato l'errore:");
 
 
@@ -28,6 +30,8 @@ int main(int argc, int *argv[])
 			tabPrintFile(tab1);
 			return 0;
 		}
+
+
 	}
 	if(argc>=4)
 	{
@@ -35,6 +39,11 @@ int main(int argc, int *argv[])
 		{
 			delEntryTabF(tab1, atoi(argv[3]));
 			printf("Element [%d] free\n",atoi(argv[3]));
+			return 0;
+		}
+		if (strcmp(argv[2], "s") == 0)
+		{
+			printf("name Search {%s} is at index: %d\n",argv[3],searchFirstEntry(t,argv[3]));
 			return 0;
 		}
 	}
@@ -50,8 +59,31 @@ int main(int argc, int *argv[])
 			printf("%s [%d] succesful write\n",argv[3],atoi(argv[4]));
 			return 0;
 		}
+		if (strcmp(argv[2], "sf") == 0)
+		{
+			printf("name Search {%s} start from [%d] is at index: %d\n",argv[3],atoi(argv[4]),searchEntryBy(t,argv[3],atoi(argv[4])));
+			return 0;
+		}
 	}
+
+	help();
 
 	fclose(tab1);
 	return 0;
+}
+
+void help()
+{
+	printf("Comandi disponibili:\n");
+	printf("-> [fileName] [parameter] [argv] ...\n");
+	printf("Parameter List:");
+	printf("\n(0)arg\n");
+	printf("\tp\t\tPrinta il file indicato\n");
+	printf("(1)arg\n");
+	printf("\td [index]\tElimina nel file la entry indicata\n");
+	printf("\ts [Name]\tCerca a quale entry si trova il nome cercato\n");
+	printf("(2)arg\n");
+	printf("\ta [Name] [index]\tAggiunge una entry con questi parametri alla Tabella\n");
+	printf("\tsf [Name] [Start index]\tCerca a quale entry si trova il nome cercato partendo da [Start Index]\n");
+
 }
