@@ -36,31 +36,34 @@ typedef struct table_{
 }table;         /// il tipo table serve per avere una copia in ram concui lavorare
 
 /** Prototipi **/
+
+/// Funzioni di Interfaccia operanti su Tabella
+table *init_Tab(char * path_file, char *name_tab);
+table *open_Tab(char * path_file);
+int addEntry(table *table,char * name, int data);
+int searchFirstEntry(table *tabel, char* search);
+int searchEntryBy(table * tabel, char* search, int startIndex);
+
 /// Funzioni di supporto operanti sul file
-FILE *openTabF(char*);
-int setUpTabF(FILE *, char *);
-int addEntryTabF (FILE *, char *, int );
-int delEntryTabF(FILE *, int);
-int entrySeekF(FILE *, int);
-size_t lenTabF(FILE *);
-int fileWrite(FILE *,size_t , int ,void *);
-
-/// Funzioni di supporto operanti su Tabella in Ram
-int searchFirstEntry(table *, char*);
-int searchEntryBy(table *, char*, int);
-table *makeTable(FILE *);
-void freeTable(table *);
-
+FILE *openTabF(char* path_file);
+int setUpTabF(FILE * fdTable, char * name_Table);
+int addEntryTabF (FILE * fdTable, char *name, int data);
+int delEntryTabF(FILE * fdTable, int index);
+int entrySeekF(FILE * fdTable, int indexEntry);
+size_t lenTabF(FILE * fdTable);
+int fileWrite(FILE * fdTable,size_t sizeElem, int nelem,void * dataWrite);
 
 ///Show funciton
-void firstPrint(firstFree *);
-void entryPrint(entry *);
-void tabPrintFile(FILE *);
+void firstPrint(firstFree * head);
+void entryPrint(entry * en);
+void tabPrintFile(FILE * fdTable);
 
 ///funzioni di supporto
-int isLastEntry(entry *);
-int isEmptyEntry(entry *e);
-char *booleanPrint(int);
+int isLastEntry(entry * en);
+int isEmptyEntry(entry * en);
+char *booleanPrint(int val);
+table *makeTable(FILE * fdTable);
+void freeTable(table * table);
 
 #endif //FILETAB_DEMO_TABLEFILE_H
 

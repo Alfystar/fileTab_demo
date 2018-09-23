@@ -6,11 +6,10 @@
 #define tab2Name "testTab2.tab"
 
 
-FILE *tab1;
 table *t;
 char *fileName1;
 
-int main(int argc, int *argv[])
+int main(int argc, char *argv[])
 {
 	if (argc>=2)
 	{
@@ -18,16 +17,19 @@ int main(int argc, int *argv[])
 	} else {
 		fileName1=tab1Name;
 	}
-	tab1=openTabF(fileName1);
-	t=makeTable(tab1);
-	if(setUpTabF(tab1,"tabella numero 1")) perror("la tabella 1 ha dato l'errore:");
 
+	t=init_Tab(fileName1,"XXX Nome XXX");
 
+	if(t==NULL)
+	{
+		printf("Errore nell'aprire la tabella");
+		exit(-1);
+	}
 	if(argc>=3) //seleziona comando
 	{
 		if (strcmp(argv[2], "p") == 0)
 		{
-			tabPrintFile(tab1);
+			tabPrintFile(t->stream);
 			return 0;
 		}
 
@@ -37,7 +39,7 @@ int main(int argc, int *argv[])
 	{
 		if (strcmp(argv[2], "d") == 0)
 		{
-			delEntryTabF(tab1, atoi(argv[3]));
+			delEntryTabF(t->stream, atoi(argv[3]));
 			printf("Element [%d] free\n",atoi(argv[3]));
 			return 0;
 		}
@@ -51,12 +53,12 @@ int main(int argc, int *argv[])
 	{
 		if(strcmp(argv[2],"a")==0)
 		{
-			if(addEntryTabF(tab1,argv[3],atoi(argv[4])))
+			if(addEntryTabF(t->stream,argv[3],atoi(argv[4])))
 			{
 				perror("add entry take error:");
 				return -1;
 			}
-			printf("%s [%d] succesful write\n",argv[3],atoi(argv[4]));
+			printf("%s [%d] succesfull write\n",argv[3],atoi(argv[4]));
 			return 0;
 		}
 		if (strcmp(argv[2], "sf") == 0)
@@ -68,7 +70,8 @@ int main(int argc, int *argv[])
 
 	help();
 
-	fclose(tab1);
+	fclose(t->stream);
+	freeTable(t);
 	return 0;
 }
 

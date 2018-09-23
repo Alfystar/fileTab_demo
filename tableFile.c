@@ -4,6 +4,77 @@
 
 #include "tableFile.h"
 
+/// Funzioni di Interfaccia operanti su Tabella
+
+/** La funzione ha lo scopo di creare una tabella completamente nuova in memoria **/
+table *init_Tab(char * path, char *name)
+{
+	table *t;
+	FILE *f;
+	f=openTabF(path);
+	if(setUpTabF(f,name))
+	{
+		char buf[128]; // buff per creare la tringa di errore dinamicamente
+		switch (errno)
+		{
+			case EEXIST:
+				//tutto ok, posso andare avanti, è una semplice apertura
+				break;
+			default:
+
+				sprintf(buf,"open file %s, take error:",path);
+				perror(buf);
+				return NULL;
+				break;
+		}
+	}
+	t=makeTable(f);
+	return t;
+}
+
+table *open_Tab(char * path)
+{
+	FILE *f;
+	f=openTabF(path);
+	return makeTable(f);
+}
+
+int addEntry(table *t,char *name, int data)
+{
+	if(addEntryTabF(t->stream, name, data))
+	{
+		//aggiunta avvenuta non avvenuta con successo
+		return -1;
+	}
+	//todo: ora modifico la tabella t per mantenere la coerenza con i dati
+	return 0;
+
+}
+
+int searchFirstEntry(table *t, char* search)
+{
+	for(int i =0;i<t->head.len;i++)
+	{
+		if(strcmp(t->data[i].name,search)==0)
+		{
+			return i;
+		}
+	}
+	return -1;
+}
+
+int searchEntryBy(table *t, char* search, int idStart)
+{
+	for(int i =idStart;i<t->head.len;i++)
+	{
+		if(strcmp(t->data[i].name,search)==0)
+		{
+			return i;
+		}
+	}
+	return -1;
+}
+
 /// Funzioni di supporto operanti sul file
 FILE *openTabF(char* path)
 {
@@ -37,10 +108,7 @@ int setUpTabF(FILE *tab, char *name)
 	fstat(fileno(tab), &tabInfo);
 	if(tabInfo.st_size!=0)     //il file era già esistente e contiene dei dati
 	{
-#ifdef DEB_STR
-		printf("tabInfo.st_size=%d\n",tabInfo.st_size);
-#endif
-		errno=EEXIST; //file descriptor non valido
+		errno=EEXIST; //file descriptor non valido, perchè il file contiene già qualcosa
 		return -1;
 	}
 
@@ -53,7 +121,7 @@ int setUpTabF(FILE *tab, char *name)
 	/// setup di last
 	entry last;
 	memset(last.name,0,nameEntrySize);
-	last.point=NULL;
+	last.point=-1;
 
 	///File write
 	flockfile(tab);
@@ -96,11 +164,14 @@ int addEntryTabF(FILE *tab, char *name, int data)
 	fread(&freeData,1, sizeof(freeData),tab);
 	funlockfile(tab);
 
-
+	/*
+	firstPrint(&first);
+	entryPrint(&freeData);
+	*/
 	if(isLastEntry(&freeData))
 	{
 		//se è la fine si cambiano i valori e si crea un nuovo last-entry
-
+		printf("è l'ultima entry aggiungo\n");
 		/// last free diventa un dato
 		freeData.point=data;
 		strncpy(freeData.name,name,nameEntrySize);
@@ -141,6 +212,7 @@ int addEntryTabF(FILE *tab, char *name, int data)
 	else
 	{
 		//si trasforma in una cella dati e first-free punta la successiva
+		printf("è una entry libera, sovrascrivo\n");
 		first.nf_id=freeData.point;   //first free ora punta una nuova casella libera
 		first.counter--;
 		/// la prima casella libera diventa un dato
@@ -243,65 +315,6 @@ int fileWrite(FILE *f,size_t sizeElem, int nelem,void *dat)
 	return 0;
 }
 
-/// Funzioni di supporto operanti su Tabella in Ram
-
-int searchFirstEntry(table *t, char* search)
-{
-	for(int i =0;i<t->head.len;i++)
-	{
-		if(strcmp(t->data[i].name,search)==0)
-		{
-			return i;
-		}
-	}
-	return -1;
-}
-
-int searchEntryBy(table *t, char* search, int idStart)
-{
-	for(int i =idStart;i<t->head.len;i++)
-	{
-		if(strcmp(t->data[i].name,search)==0)
-		{
-			return i;
-		}
-	}
-	return -1;
-}
-
-table *makeTable(FILE *tab)
-{
-	fflush(tab);    //garantisco che tutto quello che va scritto venga scritto
-	struct stat tabInfo;
-	fstat(fileno(tab), &tabInfo);
-	if(tabInfo.st_size==0)
-	{
-		printf("File Vuoto, o Inesistente\n");
-		return;
-	}
-
-	size_t len =lenTabF(tab);
-
-	table *t=(table *)malloc(sizeof(table));
-	t->data=(entry *)calloc(len, sizeof(entry));
-
-
-	flockfile(tab);
-	rewind(tab);
-	fread(&t->head,1, sizeof(firstFree),tab);
-	fread(t->data,1, sizeof(entry)*len,tab);
-	funlockfile(tab);
-	t->stream=tab;
-	return t;
-}
-
-void freeTable(table *t)
-{
-	free(t->data);
-	free(t);
-}
-
-
 ///Show funciton
 void firstPrint(firstFree *f){
 	printf("#1\tfirstFree data Store:\nname\t\t-> %s\ncouterFree\t-> %d\nLen\t\t-> %d\nnextFree\t-> %d\n",f->name,f->counter,f->len,f->nf_id);
@@ -368,4 +381,35 @@ char *booleanPrint(int i)
 {
 	if(i) return "True";
 	else return "False";
+}
+
+table *makeTable(FILE *tab)
+{
+	fflush(tab);    //garantisco che tutto quello che va scritto venga scritto
+	struct stat tabInfo;
+	fstat(fileno(tab), &tabInfo);
+	if(tabInfo.st_size==0)
+	{
+		printf("File Vuoto, o Inesistente\n");
+		return;
+	}
+
+	size_t len =lenTabF(tab);
+
+	table *t=(table *)malloc(sizeof(table));
+	t->data=(entry *)calloc(len, sizeof(entry));
+
+	flockfile(tab);
+	rewind(tab);
+	fread(&t->head,1, sizeof(firstFree),tab);
+	fread(t->data,1, sizeof(entry)*len,tab);
+	funlockfile(tab);
+	t->stream=tab;
+	return t;
+}
+
+void freeTable(table *t)
+{
+	free(t->data);
+	free(t);
 }
