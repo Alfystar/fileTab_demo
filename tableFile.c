@@ -43,12 +43,101 @@ int addEntry(table *t,char *name, int data)
 {
 	if(addEntryTabF(t->stream, name, data))
 	{
-		//aggiunta avvenuta non avvenuta con successo
+		//Aggiunta non avvenuta con successo
 		return -1;
 	}
-	//todo: ora modifico la tabella t per mantenere la coerenza con i dati
-	return 0;
+	firstFree *first=&t->head;
+	entry *freeData=&t->data[t->head.nf_id];
+	if(isLastEntry(freeData))		//se è la fine si cambiano i valori e si crea un nuovo last-entry
+	{
+		/// last free diventa un dato
+		freeData->point=data;
+		strncpy(freeData->name,name,nameEntrySize);
+		///first-free viene cambiato il luo next-free
+		first->nf_id++;
+		first->len++;
+		first->counter=1;
+		/// viene generato un nuovo last-free a fine file
+		/// setup di last
+		t->data=reallocarray(t->data,t->head.len ,sizeof(entry));
+		entry *last=&t->data[t->head.len-1];
+		memset(last->name,0,nameEntrySize);
+		last->point=-1;
+	}
+	else		//si trasforma in una cella dati e first-free punta la successiva
 
+	{
+		first->nf_id=freeData->point;   //first free ora punta una nuova casella libera
+		first->counter--;
+		/// la prima casella libera diventa un dato
+		freeData->point=data;
+		strncpy(freeData->name,name,nameEntrySize);
+	}
+	return 0;
+}
+
+int delEntry(table *t, int index)
+{
+	if(delEntryTabF(t->stream, index))
+	{
+		//Eliminazione non avvenuta con successo
+		return -1;
+	}
+	firstFree *first=&t->head;
+	entry *delData=&t->data[index];
+	if(isEmptyEntry(delData))
+	{
+		// è già una cella cancellata, e non devo modificare nulla
+		printf("la casella è vuota\n");
+		return 0;
+	}
+	delData->name[0]=0;  //metto la stringa a ""
+	delData->point=first->nf_id;
+	first->nf_id=index;
+	first->counter++;
+	return 0;
+}
+
+table *compressTable(table *t) {
+	int enNotEmpty_Id[t->head.len];
+	int newLen = 0;
+	///ottengo gli id per i quali ho entry valide e anche la nuova lunghezza
+	for (int i = 0; i < t->head.len; ++i) {
+		if (!isEmptyEntry(&t->data[i])) {
+			//se non è una cella vuota allora posso copiarla
+			enNotEmpty_Id[newLen] = i;
+			newLen++;
+		}
+	}
+	if (newLen == t->head.len)
+	{
+		//il file è già alla dimensione minima
+		return 0;
+	}
+	/// creo una nuova lista della dimensione giusta e ci copio solo le entry non vuote
+	entry *newData=(entry *)calloc(newLen, sizeof(entry));
+	for (int j = 0; j <newLen; ++j)
+	{
+		memcpy(&newData[j],&t->data[enNotEmpty_Id[j]],sizeof(entry));
+	}
+	free(t->data);          //libero la vecchia lista non più utile
+	t->data=newData;        //punto la nuova lista creata e compatta
+	t->head.len=newLen;     //first aggiorna la lunghezza
+	t->head.counter=1;      //ora sarà presente solo last-free
+	t->head.nf_id=newLen-1; //last-free si trova a len-1
+
+	flockfile(t->stream);
+	if(ftruncate(fileno(t->stream), sizeof(firstFree)+ sizeof(entry)*newLen))
+	{
+		perror("Tunck File take error:");
+		return -1;
+	}
+	rewind(t->stream);
+	fileWrite(t->stream, sizeof(firstFree),1,&t->head);
+	fileWrite(t->stream, sizeof(entry),newLen,t->data);
+	funlockfile(t->stream);
+
+	return t;
 }
 
 int searchFirstEntry(table *t, char* search)
@@ -144,14 +233,15 @@ int setUpTabF(FILE *tab, char *name)
 
 int addEntryTabF(FILE *tab, char *name, int data)
 {
+	/** L'operazione è eseguita in modo atomico rispetto ai Tread del processo **/
 	firstFree first;
 	entry freeData;
 
 	flockfile(tab);
+
 	rewind(tab);        //posiziono il seek all'inizio per leggere la prima entry libera
 	fflush(tab);    //garantisco che tutto quello che va scritto venga scritto nel file e quindi letto
 	fread(&first,1, sizeof(firstFree),tab);
-	funlockfile(tab);
 	int enSeek = entrySeekF(tab, first.nf_id);
 	if(enSeek==-1){
 		perror("in addEntryTabF entrySeekF take error:");
@@ -159,19 +249,12 @@ int addEntryTabF(FILE *tab, char *name, int data)
 		exit(-1);
 	}
 
-	flockfile(tab);
 	fseek(tab,enSeek,SEEK_SET);
 	fread(&freeData,1, sizeof(freeData),tab);
-	funlockfile(tab);
 
-	/*
-	firstPrint(&first);
-	entryPrint(&freeData);
-	*/
-	if(isLastEntry(&freeData))
+	if(isLastEntry(&freeData))		//se è la fine si cambiano i valori e si crea un nuovo last-entry
+
 	{
-		//se è la fine si cambiano i valori e si crea un nuovo last-entry
-		printf("è l'ultima entry aggiungo\n");
 		/// last free diventa un dato
 		freeData.point=data;
 		strncpy(freeData.name,name,nameEntrySize);
@@ -188,7 +271,6 @@ int addEntryTabF(FILE *tab, char *name, int data)
 		first.counter=1;
 
 		///File write
-		flockfile(tab);
 		fseek(tab,enSeek,SEEK_SET);
 		if(fileWrite(tab,sizeof(entry),1,&freeData))
 		{
@@ -206,19 +288,15 @@ int addEntryTabF(FILE *tab, char *name, int data)
 			perror("Override FirstFree take error:");
 			return -1;
 		}
-		funlockfile(tab);
 
 	}
-	else
+	else 		//si trasforma in una cella dati e first-free punta la successiva
 	{
-		//si trasforma in una cella dati e first-free punta la successiva
-		printf("è una entry libera, sovrascrivo\n");
 		first.nf_id=freeData.point;   //first free ora punta una nuova casella libera
 		first.counter--;
 		/// la prima casella libera diventa un dato
 		freeData.point=data;
 		strncpy(freeData.name,name,nameEntrySize);
-		flockfile(tab);
 		fseek(tab,enSeek,SEEK_SET);
 		if(fileWrite(tab,sizeof(entry),1,&freeData))
 		{
@@ -231,8 +309,10 @@ int addEntryTabF(FILE *tab, char *name, int data)
 			perror("Override FirstFree take error:");
 			return -1;
 		}
-		funlockfile(tab);
 	}
+
+	funlockfile(tab);
+
 	return 0;
 }
 
@@ -241,11 +321,6 @@ int delEntryTabF(FILE *tab, int index)
 	firstFree first;
 	entry delData;
 
-	flockfile(tab);
-	fflush(tab);    //garantisco che tutto quello che va scritto venga scritto
-	rewind(tab);        //posiziono il seek all'inizio per leggere la prima entry libera
-	fread(&first,1, sizeof(first),tab);
-	funlockfile(tab);
 
 	int enDelSeek = entrySeekF(tab, index);
 	if(enDelSeek==-1){
@@ -253,12 +328,26 @@ int delEntryTabF(FILE *tab, int index)
 		printf("index richiesto:%d\n",index);
 		exit(-1);
 	}
+	/** L'operazione è eseguita in modo atomico rispetto ai Tread del processo **/
+	flockfile(tab);
+
+	fflush(tab);    //garantisco che tutto quello che va scritto venga scritto
+	rewind(tab);        //posiziono il seek all'inizio per leggere la prima entry libera
+	fread(&first,1, sizeof(first),tab);
+	fseek(tab,enDelSeek,SEEK_SET);
+	fread(&delData,1, sizeof(delData),tab);
+
+	if(isEmptyEntry(&delData))
+	{
+		// è già una cella cancellata, e non devo modificare nulla
+		return 0;
+	}
+
 	delData.name[0]=0;  //metto la stringa a ""
 	delData.point=first.nf_id;
 	first.nf_id=index;
 	first.counter++;
 
-	flockfile(tab);
 	fseek(tab,enDelSeek,SEEK_SET);
 	if(fileWrite(tab,sizeof(entry),1,&delData))
 	{
@@ -271,7 +360,9 @@ int delEntryTabF(FILE *tab, int index)
 		perror("Override FirstFree on delete take error:");
 		return -1;
 	}
+
 	funlockfile(tab);
+	return 0;
 }
 
 int entrySeekF(FILE *tab, int i)
@@ -339,7 +430,7 @@ void tabPrint(table *tab)
 	size_t lenFile =lenTabF(tab->stream);
 
 	printf("-------------------------------------------------------------\n");
-	printf("\tIl file ha le seguenti caratteristiche:\n\tsize=%d\n\tlenFile=%d\tlenFirst=%d\n",tabInfo.st_size,lenFile,tab->head.len);
+	printf("\tLa tabella ha le seguenti caratteristiche:\n\tsize=%d\n\tlenFile=%d\tlenFirst=%d\n",tabInfo.st_size,lenFile,tab->head.len);
 	printf("\tsizeof(entry)=%d\tsizeof(firstFree)=%d\n",sizeof(entry),sizeof(firstFree));
 	printf("\n\t[][]La tabella contenuta nel file contiene:[][]\n\n");
 	firstPrint(&tab->head);
@@ -357,6 +448,7 @@ void tabPrint(table *tab)
 void tabPrintFile(FILE *tab)
 {
 	table *t=makeTable(tab);
+	printf("\t#@#@#@[] Print da File System []@#@#@#\n");
 	tabPrint(t);
 	freeTable(t);
 	return;
@@ -391,7 +483,7 @@ table *makeTable(FILE *tab)
 	if(tabInfo.st_size==0)
 	{
 		printf("File Vuoto, o Inesistente\n");
-		return;
+		return NULL;
 	}
 
 	size_t len =lenTabF(tab);

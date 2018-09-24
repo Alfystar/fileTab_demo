@@ -7,11 +7,15 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <malloc.h>
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
+#include <sys/types.h>
+#include <sys/ipc.h>
+#include <sys/sem.h>
 
 
 #define nameFirstFreeSize 50
@@ -41,8 +45,11 @@ typedef struct table_{
 table *init_Tab(char * path_file, char *name_tab);
 table *open_Tab(char * path_file);
 int addEntry(table *table,char * name, int data);
+int delEntry(table *table, int index);
+table *compressTable(table *table);
 int searchFirstEntry(table *tabel, char* search);
 int searchEntryBy(table * tabel, char* search, int startIndex);
+
 
 /// Funzioni di supporto operanti sul file
 FILE *openTabF(char* path_file);
@@ -53,9 +60,11 @@ int entrySeekF(FILE * fdTable, int indexEntry);
 size_t lenTabF(FILE * fdTable);
 int fileWrite(FILE * fdTable,size_t sizeElem, int nelem,void * dataWrite);
 
+
 ///Show funciton
 void firstPrint(firstFree * head);
 void entryPrint(entry * en);
+void tabPrint(table *tab);
 void tabPrintFile(FILE * fdTable);
 
 ///funzioni di supporto
@@ -92,7 +101,8 @@ void freeTable(table * table);
  * [!]  è imperativo che i dati mantengano di consistenza
  *
  *
- * index --------------
+ * index
+ *       --------------
  *  [-]  | first-free |       nome tabella; punta NULL1---------------\
  *       --------------                                               |
  *  [0]  |    DATA    |                                               |

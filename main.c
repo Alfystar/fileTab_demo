@@ -32,14 +32,19 @@ int main(int argc, char *argv[])
 			tabPrintFile(t->stream);
 			return 0;
 		}
-
+		if (strcmp(argv[2], "c") == 0)
+		{
+			compressTable(t);
+			tabPrint(t);
+			return 0;
+		}
 
 	}
 	if(argc>=4)
 	{
 		if (strcmp(argv[2], "d") == 0)
 		{
-			delEntryTabF(t->stream, atoi(argv[3]));
+			delEntry(t, atoi(argv[3]));
 			printf("Element [%d] free\n",atoi(argv[3]));
 			return 0;
 		}
@@ -53,12 +58,14 @@ int main(int argc, char *argv[])
 	{
 		if(strcmp(argv[2],"a")==0)
 		{
-			if(addEntryTabF(t->stream,argv[3],atoi(argv[4])))
+
+			if(addEntry(t,argv[3],atoi(argv[4])))
 			{
 				perror("add entry take error:");
 				return -1;
 			}
 			printf("%s [%d] succesfull write\n",argv[3],atoi(argv[4]));
+
 			return 0;
 		}
 		if (strcmp(argv[2], "sf") == 0)
@@ -82,6 +89,7 @@ void help()
 	printf("Parameter List:");
 	printf("\n(0)arg\n");
 	printf("\tp\t\tPrinta il file indicato\n");
+	printf("\tc\t\tComprime il file indicato eliminando le entry Empty\n");
 	printf("(1)arg\n");
 	printf("\td [index]\tElimina nel file la entry indicata\n");
 	printf("\ts [Name]\tCerca a quale entry si trova il nome cercato\n");
@@ -89,4 +97,12 @@ void help()
 	printf("\ta [Name] [index]\tAggiunge una entry con questi parametri alla Tabella\n");
 	printf("\tsf [Name] [Start index]\tCerca a quale entry si trova il nome cercato partendo da [Start Index]\n");
 
+}
+
+void comparePrint(table *t)
+{
+	printf("Printo il contenuto della tabella in ram\n");
+	tabPrint(t);
+	printf("Printo il contenuto del file su hd\n");
+	tabPrintFile(t->stream);
 }
