@@ -99,6 +99,12 @@ int delEntry(table *t, int index)
 }
 
 table *compressTable(table *t) {
+
+	if (t->head.counter == 1)
+	{
+		//il file è già alla dimensione minima
+		return 0;
+	}
 	int enNotEmpty_Id[t->head.len];
 	int newLen = 0;
 	///ottengo gli id per i quali ho entry valide e anche la nuova lunghezza
@@ -109,11 +115,7 @@ table *compressTable(table *t) {
 			newLen++;
 		}
 	}
-	if (newLen == t->head.len)
-	{
-		//il file è già alla dimensione minima
-		return 0;
-	}
+
 	/// creo una nuova lista della dimensione giusta e ci copio solo le entry non vuote
 	entry *newData=(entry *)calloc(newLen, sizeof(entry));
 	for (int j = 0; j <newLen; ++j)
