@@ -403,7 +403,7 @@ int fileWrite(FILE *f,size_t sizeElem, int nelem,void *dat)
 			errno=EBADFD;   //file descriptor in bad state
 			return -1;
 		}
-		cont += fwrite(dat, 1, sizeElem*nelem, f);
+		cont += fwrite(dat+cont, 1, sizeElem*nelem-cont, f);
 	}
 	return 0;
 }
