@@ -181,13 +181,13 @@ FILE *openTabF(char* path)
 	if(tabFd==-1)
 	{
 		perror("open FD for Tab take error:");
-		exit(-1);
+		return NULL;
 	}
 	FILE *f= fdopen(tabFd,"r+");
 	if(f==NULL)
 	{
 		perror("tab open error:");
-		exit(-1);
+		return NULL;
 	}
 	return f;
 
